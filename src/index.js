@@ -31,12 +31,24 @@ export default function transformCssModules({ types: t }) {
      * @returns {Array} array of class names
      */
     function requireCssFile(filepath, cssFile) {
-        const from = resolveModulePath(filepath);
-        return require(resolve(from, cssFile));
+        let filePathOrModuleName = cssFile;
+
+        // only resolve path to file when we have a file path
+        if (!/^\w/i.test(filePathOrModuleName)) {
+            const from = resolveModulePath(filepath);
+            filePathOrModuleName = resolve(from, filePathOrModuleName);
+        }
+        return require(filePathOrModuleName);
     }
 
     // is css modules require hook initialized?
     let initialized = false;
+
+    let matchExtensions = /\.css/i;
+    function matcher(extensions = ['.css']) {
+        const extensionsPatern = extensions.join('|').replace('.', '\.');
+        return new RegExp(`(${extensionsPatern})`, 'i');
+    }
 
     return {
         visitor: {
@@ -46,6 +58,10 @@ export default function transformCssModules({ types: t }) {
                 }
 
                 const currentConfig = { ...defaultOptions, ...opts };
+
+                // match file extensions, speeds up transform by creating one
+                // RegExp ahead of execution time
+                matchExtensions = matcher(currentConfig.extensions);
 
                 // check if there are simple requires and if they are functions
                 simpleRequires.forEach(key => {
@@ -128,22 +144,22 @@ export default function transformCssModules({ types: t }) {
 
             CallExpression(path, { file }) {
                 const { callee: { name: calleeName }, arguments: args } = path.node;
+                const [{ value: stylesheetPath }] = args;
 
                 if (calleeName !== 'require' || !args.length || !t.isStringLiteral(args[0])) {
                     return;
                 }
 
-                if (/\.css/i.test(args[0].value)) {
-                    const [ { value: cssPath }] = args;
-
+                if (matchExtensions.test(stylesheetPath)) {
                     // if parent expression is variable declarator, replace right side with tokens
                     if (!t.isVariableDeclarator(path.parent)) {
                         throw new Error(
-                            `You can't import css file ${cssPath} to a module scope.`
+                            `You can't import css file ${stylesheetPath} to a module scope.`
                         );
                     }
 
-                    const tokens = requireCssFile(file.opts.filename, args[0].value);
+                    const requiringFile = file.opts.filename;
+                    const tokens = requireCssFile(requiringFile, stylesheetPath);
 
                     /* eslint-disable new-cap */
                     path.replaceWith(t.ObjectExpression(
