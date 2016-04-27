@@ -157,14 +157,15 @@ function transformCssModules(_ref) {
                 var calleeName = _path$node.callee.name;
                 var args = _path$node.arguments;
 
-                var _args = _slicedToArray(args, 1);
-
-                var stylesheetPath = _args[0].value;
-
 
                 if (calleeName !== 'require' || !args.length || !t.isStringLiteral(args[0])) {
                     return;
                 }
+
+                var _args = _slicedToArray(args, 1);
+
+                var stylesheetPath = _args[0].value;
+
 
                 if (matchExtensions.test(stylesheetPath)) {
                     (function () {

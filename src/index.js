@@ -143,12 +143,13 @@ export default function transformCssModules({ types: t }) {
             },
 
             CallExpression(path, { file }) {
-                const { callee: { name: calleeName }, arguments: args } = path.node;
-                const [{ value: stylesheetPath }] = args;
+                const { callee: { name: calleeName }, arguments: args} = path.node;
 
                 if (calleeName !== 'require' || !args.length || !t.isStringLiteral(args[0])) {
                     return;
                 }
+
+                const [{ value: stylesheetPath }] = args;
 
                 if (matchExtensions.test(stylesheetPath)) {
                     // if parent expression is variable declarator, replace right side with tokens
